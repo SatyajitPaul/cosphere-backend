@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Privacy {
+  Private
+  Public
+  Platform
+  Shared
+}
+
+enum UserType {
+  Pro
+  Member
+  Restricted
+}
+
+model User {
+  id              String     @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String     @unique
+  username        String     @unique
+  emailVerified   Boolean    @default(false)
+  emailVerifiedAt DateTime?
+  password        String?
+  type            UserType  @default(Restricted)
+  articles        Article[]
+  opinions        Opinion[]
+  reactions       Reaction[]
+  comments        Comment[]
+  refreshTokens RefreshToken[]
+  refreshTokenExpiresAt DateTime?
+  isDeleted       Boolean    @default(false)
+  privacy         Privacy    @default(Public)
+  createdAt       DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Article {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  title         String
+  content       String
+  path          String     @unique
+  comments      Comment[]
+  reactions     Reaction[]
+  likeCount     Int        @default(0)
+  dislikeCount  Int        @default(0)
+  commentCount  Int        @default(0)
+  isDeleted     Boolean    @default(false)
+  privacy       Privacy    @default(Public)
+  createdAt     DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Opinion {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  content       String
+  comments      Comment[]
+  reactions     Reaction[]
+  likeCount     Int        @default(0)
+  dislikeCount  Int        @default(0)
+  commentCount  Int        @default(0)
+  isDeleted     Boolean    @default(false)
+  privacy       Privacy    @default(Public)
+  createdAt     DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  articleId     String?
+  article       Article?   @relation(fields: [articleId], references: [id])
+  opinionId     String?
+  opinion       Opinion?   @relation(fields: [opinionId], references: [id])
+  parentId      String?
+  parent        Comment?   @relation("CommentToComment", fields: [parentId], references: [id])
+  replies       Comment[]  @relation("CommentToComment")
+  reactions     Reaction[]
+  content       String
+  likeCount     Int        @default(0)
+  dislikeCount  Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reaction {
+  id            String     @id @default(cuid())
+  userId        String
+  articleId     String?
+  opinionId     String?
+  commentId     String?
+  user          User       @relation(fields: [userId], references: [id])
+  article       Article?   @relation(fields: [articleId], references: [id])
+  opinion       Opinion?   @relation(fields: [opinionId], references: [id])
+  comment       Comment?   @relation(fields: [commentId], references: [id])
+  isLike        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, articleId], name: "unique_user_article_reaction")
+  @@unique([userId, opinionId], name: "unique_user_opinion_reaction")
+  @@unique([userId, commentId], name: "unique_user_comment_reaction")
+}
+model RefreshToken {
+  id          String   @id @unique @default(uuid())
+  hashedToken String
+  userId      String
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
